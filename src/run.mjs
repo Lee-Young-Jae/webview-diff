@@ -49,8 +49,9 @@ const levelColor = { pass: C.green, warn: C.yellow, fail: C.red };
 async function main() {
   const { mode, flags } = parseArgs(process.argv.slice(2));
 
-  // `init` runs before config load (the config may not exist yet)
+  // these run before config load (no config needed)
   if (mode === 'init') { const { init } = await import('./init.mjs'); return init(process.cwd(), flags); }
+  if (mode === 'selftest') { await import('./selftest.mjs'); return; } // self-exits with pass/fail code
 
   const cfg = loadConfig(process.cwd(), { baseUrl: flags.baseUrl, outDir: flags.outDir });
   const outDir = path.resolve(cfg.cwd, cfg.outDir);
