@@ -1,0 +1,41 @@
+{
+  "title": "webview-diff · demo (bundled fixtures)",
+  "baseUrl": "http://localhost:4321",
+  "outDir": ".out",
+  "baselineDir": "baselines",
+  "fullPage": true,
+  "concurrency": 4,
+  "retries": 2,
+  "routes": [
+    { "path": "/", "name": "home" },
+    { "path": "/drift", "name": "drift" },
+    { "path": "/forms", "name": "forms" },
+    { "path": "/safearea", "name": "safearea" },
+    { "path": "/heavy", "name": "heavy" },
+    { "path": "/occlusion", "name": "occlusion" }
+  ],
+  "pairs": [
+    { "a": "baseline", "b": "engine-webkit", "mode": "cross-engine", "axis": "engine", "label": "Blink → WebKit (engine)" },
+    { "a": "baseline", "b": "platform-ios", "mode": "cross-engine", "axis": "platform", "label": "android → ios (platform branch)" },
+    { "a": "baseline", "b": "insets-ios", "mode": "cross-engine", "axis": "safe-area", "label": "safe-area insets (OS)" }
+  ],
+  "masks": [],
+  "bridge": {
+    "globalName": "NativeBridge",
+    "api": {
+      "getAuthToken": "mock.access.token",
+      "getUser": { "id": "u_demo", "nickname": "건반러" },
+      "login": { "ok": true },
+      "logout": { "ok": true },
+      "openCamera": { "ok": true, "uri": "mock://camera/receipt.jpg" },
+      "requestPush": { "granted": true }
+    },
+    "props": { "version": "1.0.0" }
+  },
+  "perf": {
+    "enabled": true,
+    "runs": 3,
+    "throttle": { "cpu": 4, "net": "4g" },
+    "profiles": ["baseline", "engine-webkit"]
+  }
+}

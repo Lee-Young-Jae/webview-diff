@@ -1,0 +1,6 @@
+{
+  "name": "webview-diff",
+  "description": "Cross-engine visual-regression, safe-area occlusion and Web-Vitals detection for webview-hosted web apps. Ships the /webview-diff:design-check skill that runs the detector and triages findings by cause.",
+  "version": "0.1.0",
+  "author": { "name": "Lee-Young-Jae" }
+}

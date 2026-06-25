@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko" data-page="drift">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>건반 · 플랫폼 분기 (의도적 드리프트)</title>
+<style>
+  :root{ --ink:#101828; --mut:#667085; --line:#eaecf0; --bg:#f7f8fa; --brand:#6366f1; }
+  *{box-sizing:border-box}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+  .wrap{padding:24px 16px}
+  h1{font-size:18px}
+  p{color:var(--mut); font-size:13px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:16px}
+  .cta{display:block;width:100%;border:0;border-radius:12px;color:#fff;font-size:16px;font-weight:600;
+    padding:14px; background:var(--brand); text-align:center}
+
+  /* DELIBERATE BUG: someone wrote platform-conditional styling that diverged.
+     The detector must flag this as cross-engine (android↔ios) design drift. */
+  html[data-platform="ios"] .cta{ background:#ef4444; padding:20px; border-radius:24px; }
+  html[data-platform="ios"] .badge{ letter-spacing:2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>결제하기</h1>
+  <p>이 화면의 버튼 스타일은 플랫폼에 따라 의도치 않게 달라지도록 작성됐습니다 (검출 대상).</p>
+  <div class="card">
+    <div class="badge">프리미엄 멤버십</div>
+    <p>월 9,900원 · 광고 제거 + 무제한 영수증 분석</p>
+    <button class="cta">구독 시작하기</button>
+  </div>
+  <p id="dbg" style="margin-top:20px;font-size:11px"></p>
+</div>
+<script>
+  const b = window.NativeBridge;
+  document.getElementById('dbg').textContent = 'platform=' + (b ? b.getPlatform() : 'none');
+  if (b) b.appReady();
+</script>
+</body>
+</html>

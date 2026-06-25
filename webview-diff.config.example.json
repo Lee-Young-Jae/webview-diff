@@ -1,0 +1,17 @@
+{
+  "//": "Minimal webview-diff config. Copy to webview-diff.config.json and edit. `webview-diff init` scaffolds this for you.",
+  "title": "My App · webview-diff",
+  "baseUrl": "http://localhost:3000",
+  "routes": ["/", "/login", "/profile"],
+  "masks": ["[data-testid=now]", ".avatar", ".ad-slot"],
+
+  "//bridge": "Optional. Only needed if your web depends on a JS bridge (window.<Name>). Omit for plain web apps. platform + safe-area insets are injected automatically per profile.",
+  "bridge": {
+    "globalName": "NativeBridge",
+    "api": { "getAuthToken": "mock.token", "getUser": { "id": "u1", "name": "Tester" } },
+    "props": { "version": "1.0.0" }
+  },
+
+  "//perf": "Optional performance axis (Web Vitals). Reliable on Chromium; WebKit reports load/bytes only.",
+  "perf": { "enabled": false, "runs": 3, "throttle": { "cpu": 4, "net": "4g" }, "profiles": ["baseline", "engine-webkit"] }
+}

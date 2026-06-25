@@ -1,0 +1,11 @@
+{
+  "name": "webview-diff",
+  "owner": { "name": "Lee-Young-Jae" },
+  "plugins": [
+    {
+      "name": "webview-diff",
+      "source": ".",
+      "description": "Webview design-difference detector — /webview-diff:design-check skill (cross-engine visual diff + safe-area occlusion + Web Vitals)."
+    }
+  ]
+}

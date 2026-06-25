@@ -1,0 +1,33 @@
+{
+  "name": "webview-diff",
+  "version": "0.1.0",
+  "description": "Cross-engine visual-regression, safe-area occlusion and performance detection for webview-hosted web apps. Zero-dependency diff engine; Playwright capture (Chromium≈Android WebView, WebKit≈iOS WKWebView).",
+  "type": "module",
+  "author": "Lee-Young-Jae",
+  "license": "MIT",
+  "keywords": ["visual-regression", "webview", "playwright", "cross-browser", "web-vitals", "safe-area", "screenshot-diff"],
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "webview-diff": "./src/run.mjs"
+  },
+  "files": [
+    "src",
+    "ci",
+    "skills",
+    ".claude-plugin",
+    "README.md",
+    "DESIGN.md",
+    "webview-diff.config.example.json"
+  ],
+  "scripts": {
+    "selftest": "node src/selftest.mjs",
+    "fixtures": "node fixtures/server.mjs",
+    "init": "node src/run.mjs init",
+    "demo": "node src/run.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

@@ -1,0 +1,53 @@
+# Template — copy to .github/workflows/webview-diff.yml in your project.
+# Assumes webview-diff is installed (devDep) and webview-diff.config.json is at repo root.
+# `webview-diff init` can drop this file in for you.
+name: webview-diff
+
+on:
+  pull_request:
+    # narrow to your web app + config if you like:
+    # paths: ['apps/web/**', 'webview-diff.config.json']
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # 1) Prove the detector itself is trustworthy (no browser, fast).
+      - name: webview-diff self-test
+        run: pnpm exec webview-diff selftest
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      # 2) Start YOUR app (replace with your dev/preview server), then wait for it.
+      - name: Start app
+        run: pnpm dev &        # e.g. cd apps/web && pnpm dev &
+      - name: Wait for app
+        run: npx --yes wait-on http://localhost:3000
+
+      # 3) Detect. Visual + occlusion gate the PR; add perf via config.perf.enabled.
+      - name: webview-diff
+        run: pnpm exec webview-diff --base http://localhost:3000 --fail-on fail
+
+      # 4) Always upload the human-readable report + machine result.
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webview-diff-report
+          path: |
+            .out/report.html
+            .out/diffs
+            .out/result.json
+          retention-days: 14

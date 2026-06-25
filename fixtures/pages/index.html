@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ko" data-page="home">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>건반 · 홈</title>
+<style>
+  :root{ --ink:#101828; --mut:#667085; --line:#eaecf0; --brand:#6366f1; --card:#fff; --bg:#f7f8fa; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; font-size:16px}
+  header{position:sticky; top:0; background:#fff; border-bottom:1px solid var(--line);
+    padding:calc(12px + var(--safe-area-inset-top,0px)) 16px 12px; display:flex; justify-content:space-between; align-items:center}
+  header h1{font-size:18px; margin:0; letter-spacing:-.01em}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--brand)}
+  main{padding:16px}
+  .hero{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:16px}
+  .hero .img{height:140px; background:linear-gradient(135deg,#c7d2fe,#a5b4fc)}
+  .hero .body{padding:14px}
+  .hero h2{margin:0 0 6px; font-size:16px}
+  .hero p{margin:0; color:var(--mut); font-size:13px; line-height:1.5}
+  .row{display:flex; gap:12px; align-items:center; background:#fff; border:1px solid var(--line);
+    border-radius:14px; padding:12px; margin-bottom:10px}
+  .row .thumb{width:48px;height:48px;border-radius:12px;background:#e0e7ff;flex:0 0 auto}
+  .row .meta{flex:1; min-width:0}
+  .row .meta b{display:block; font-size:14px}
+  .row .meta span{color:var(--mut); font-size:12px}
+  .pill{font-size:11px;color:#fff;background:#10b981;border-radius:999px;padding:3px 8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>건반</h1>
+  <div class="avatar" id="avatar"></div>
+</header>
+<main>
+  <section class="hero">
+    <div class="img"></div>
+    <div class="body">
+      <h2 id="greet">반려동물 커뮤니티</h2>
+      <p>동물병원 영수증을 올리면 진료 항목을 분석해 드려요. 비슷한 보호자들과 정보를 나눠보세요.</p>
+    </div>
+  </section>
+  <div id="list"></div>
+</main>
+<script>
+  // Uses the injected NativeBridge mock — proves the bridge path renders.
+  (async () => {
+    const b = window.NativeBridge;
+    if (b) {
+      try { const u = await b.getUser(); document.getElementById('greet').textContent = u.nickname + '님, 환영해요'; } catch {}
+    }
+    // deterministic list (no Date/random in render)
+    const items = [
+      ['우리집 댕댕이 슬개골 수술 후기', '리트리버 · 3살'],
+      ['고양이 스케일링 비용 비교', '코숏 · 2살'],
+      ['예방접종 일정 공유해요', '푸들 · 1살'],
+      ['중성화 영수증 분석 결과', '먼치킨 · 4살'],
+    ];
+    document.getElementById('list').innerHTML = items.map(([t, m], i) => `
+      <div class="row"><div class="thumb"></div>
+        <div class="meta"><b>${t}</b><span>${m}</span></div>
+        ${i === 0 ? '<span class="pill">HOT</span>' : ''}</div>`).join('');
+    if (b) b.appReady();
+  })();
+</script>
+</body>
+</html>

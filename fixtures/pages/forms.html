@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko" data-page="forms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>건반 · 폼 (네이티브 컨트롤)</title>
+<style>
+  :root{ --ink:#101828; --mut:#667085; --line:#d0d5dd; --bg:#f7f8fa; }
+  *{box-sizing:border-box}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+  .wrap{padding:20px 16px; max-width:520px; margin:0 auto}
+  h1{font-size:18px}
+  label{display:block; font-size:13px; color:var(--mut); margin:16px 0 6px}
+  /* Intentionally UNSTYLED native controls: date/select/checkbox/radio/range render
+     very differently between Blink (Android WebView) and WebKit (iOS WKWebView).
+     This is authentic "flutter에서 오는 차이" — the detector should surface it. */
+  input, select{font-size:16px; width:100%; padding:6px}
+  .inline{display:flex; gap:16px; align-items:center}
+  .inline label{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>방문 예약</h1>
+
+  <label for="d">방문 날짜</label>
+  <input id="d" type="date" value="2026-07-01">
+
+  <label for="t">방문 시간</label>
+  <input id="t" type="time" value="14:30">
+
+  <label for="hospital">병원 선택</label>
+  <select id="hospital">
+    <option>행복동물병원</option>
+    <option>24시 우리동물메디컬</option>
+    <option>튼튼동물병원</option>
+  </select>
+
+  <label>증상 정도</label>
+  <input type="range" min="0" max="10" value="6">
+
+  <label>반려동물 종류</label>
+  <div class="inline">
+    <label><input type="radio" name="pet" checked> 강아지</label>
+    <label><input type="radio" name="pet"> 고양이</label>
+    <label><input type="radio" name="pet"> 기타</label>
+  </div>
+
+  <div class="inline" style="margin-top:16px">
+    <input type="checkbox" id="agree" checked>
+    <label for="agree">진료 기록 분석에 동의합니다</label>
+  </div>
+
+  <label for="memo">메모</label>
+  <input id="memo" type="text" placeholder="증상을 적어주세요">
+</div>
+<script>if (window.NativeBridge) window.NativeBridge.appReady();</script>
+</body>
+</html>

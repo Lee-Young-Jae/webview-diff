@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko" data-page="safearea">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>건반 · Safe Area 하단바</title>
+<style>
+  :root{ --ink:#101828; --mut:#667085; --line:#eaecf0; --bg:#f7f8fa; --brand:#6366f1; }
+  *{box-sizing:border-box}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; min-height:100vh}
+  .content{padding:24px 16px 120px}
+  h1{font-size:18px}
+  p{color:var(--mut); font-size:13px; line-height:1.6}
+
+  /* Bottom nav consumes the OS home-indicator inset. android(24px) vs ios(34px)
+     -> the bar's total height differs -> the detector flags it cross-engine.
+     A component that FORGOT this padding would instead sit under the home bar. */
+  .tabbar{position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line);
+    display:flex; padding-bottom:var(--safe-area-inset-bottom,0px)}
+  .tab{flex:1; text-align:center; padding:12px 0; font-size:11px; color:var(--mut)}
+  .tab .ico{width:22px;height:22px;border-radius:7px;background:#e0e7ff;margin:0 auto 4px}
+  .tab.on{color:var(--brand)} .tab.on .ico{background:var(--brand)}
+</style>
+</head>
+<body>
+<div class="content">
+  <h1>마이페이지</h1>
+  <p>이 화면의 하단 탭바는 OS 홈 인디케이터 영역(safe-area-inset-bottom)을 반영합니다.
+     Android(24px)와 iOS(34px)의 인셋이 달라 탭바 높이가 달라지며, 이를 검출 시스템이 잡아냅니다.</p>
+  <p>인셋을 반영하지 않은 컴포넌트라면 홈 인디케이터에 가려지는 버그가 됩니다.</p>
+</div>
+<nav class="tabbar">
+  <div class="tab on"><div class="ico"></div>홈</div>
+  <div class="tab"><div class="ico"></div>커뮤니티</div>
+  <div class="tab"><div class="ico"></div>영수증</div>
+  <div class="tab"><div class="ico"></div>마이</div>
+</nav>
+<script>if (window.NativeBridge) window.NativeBridge.appReady();</script>
+</body>
+</html>

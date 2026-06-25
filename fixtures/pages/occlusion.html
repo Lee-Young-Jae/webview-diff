@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko" data-page="occlusion">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>건반 · Safe-area Occlusion (의도적 버그)</title>
+<style>
+  :root{ --ink:#101828; --mut:#667085; --line:#eaecf0; --bg:#f7f8fa; --brand:#6366f1; }
+  *{box-sizing:border-box}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif; min-height:100vh}
+
+  /* BUG: 상단바가 safe-area-inset-top을 무시 → 뒤로가기 버튼/타이틀이 노치/상태바 아래로 가려진다. */
+  .appbar{position:fixed; top:0; left:0; right:0; height:48px; background:#fff; border-bottom:1px solid var(--line);
+    display:flex; align-items:center; gap:8px; padding:0 12px /* ← padding-top: var(--safe-area-inset-top) 누락 */}
+  .back{appearance:none;border:0;background:transparent;font-size:20px;width:36px;height:36px;border-radius:8px}
+  .appbar .title{font-size:16px;font-weight:600}
+
+  .content{padding:64px 16px 96px}
+  h2{font-size:15px} p{color:var(--mut);font-size:13px;line-height:1.6}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:10px}
+
+  /* BUG: 하단 고정 CTA가 safe-area-inset-bottom을 무시 → 버튼이 홈 인디케이터에 가려진다. */
+  .cta-bar{position:fixed; left:0; right:0; bottom:0; padding:10px 16px; background:#fff; border-top:1px solid var(--line)
+    /* ← padding-bottom: var(--safe-area-inset-bottom) 누락 */}
+  .cta{display:block;width:100%;border:0;border-radius:12px;background:var(--brand);color:#fff;font-size:16px;font-weight:600;padding:14px}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <button class="back" aria-label="뒤로가기">←</button>
+  <span class="title">예약 상세</span>
+</header>
+
+<div class="content">
+  <h2>방문 예약 상세</h2>
+  <p>이 화면은 상단바와 하단 CTA가 safe-area 인셋을 반영하지 않아, iOS(노치/홈 인디케이터)에서
+     뒤로가기 버튼과 결제 버튼이 시스템 UI에 가려진다. 픽셀 diff로는 "가려짐"을 알 수 없고,
+     DOM occlusion 감사가 이를 잡아낸다.</p>
+  <div class="card">진료 항목 A</div>
+  <div class="card">진료 항목 B</div>
+  <div class="card">진료 항목 C</div>
+</div>
+
+<div class="cta-bar">
+  <button class="cta">결제하기</button>
+</div>
+<script>if (window.NativeBridge) window.NativeBridge.appReady();</script>
+</body>
+</html>

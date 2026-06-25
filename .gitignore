@@ -1,0 +1,4 @@
+node_modules/
+.out/
+*.log
+# baselines/ 는 커밋한다 — regression 기준선은 버전 관리 대상.

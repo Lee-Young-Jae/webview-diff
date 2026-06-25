@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko" data-page="heavy">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>건반 · 무거운 페이지 (의도적 성능 문제)</title>
+<style>
+  :root{ --ink:#101828; --mut:#667085; --line:#eaecf0; --bg:#f7f8fa; --brand:#6366f1; }
+  *{box-sizing:border-box}
+  html,body{margin:0; background:var(--bg); color:var(--ink); font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+  .wrap{padding:24px 16px}
+  h1{font-size:18px}
+  p{color:var(--mut); font-size:13px; line-height:1.6}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>피드</h1>
+  <p>이 페이지에는 성능 예산 게이트가 잡아야 할 문제가 의도적으로 심어져 있다:
+     메인 스레드를 막는 long task(→ TBT)와, 페인트 후 뒤늦게 삽입돼 레이아웃을 미는 배너(→ CLS).</p>
+  <div class="card">콘텐츠 카드 A</div>
+  <div class="card">콘텐츠 카드 B</div>
+  <div class="card">콘텐츠 카드 C</div>
+</div>
+<script>
+  // 성능 문제 1: 메인 스레드를 ~700ms 막는 long task -> TBT 폭증
+  (function blockMainThread() {
+    var end = performance.now() + 700;
+    while (performance.now() < end) { /* busy */ }
+  })();
+
+  // 성능 문제 2: 첫 페인트 '이후' 상단에 큰 배너를 삽입 -> 콘텐츠가 밀려 layout shift(CLS).
+  // load 이벤트(첫 페인트 보장) 다음 삽입해야 throttle 하에서도 확실히 '이동'으로 잡힌다.
+  window.addEventListener('load', function () {
+    setTimeout(function () {
+      var banner = document.createElement('div');
+      banner.style.cssText = 'height:220px;background:#fff7ed;border-bottom:1px solid #fdba74;display:flex;align-items:center;justify-content:center;color:#9a3412;font-size:14px';
+      banner.textContent = '⚠ 뒤늦게 삽입된 프로모션 배너 (레이아웃 시프트 유발)';
+      document.body.insertBefore(banner, document.body.firstChild);
+    }, 500);
+  });
+
+  if (window.NativeBridge) window.NativeBridge.appReady();
+</script>
+</body>
+</html>
