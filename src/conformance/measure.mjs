@@ -10,6 +10,9 @@ import { chromium } from 'playwright';
 // Runs IN the page. Returns design-comparable values per mapped selector.
 function MEASURE(selectors) {
   const num = (v) => (v == null || v === 'normal' || v === 'auto' ? null : parseFloat(v));
+  // normalize ANY CSS color (oklab/oklch/color()/named/hsl) to rgb(a) via the browser,
+  // so the comparator only ever sees rgb/hex — modern engines (Tailwind v4) emit oklab.
+  let _cx; const norm = (v) => { try { _cx ||= document.createElement('canvas').getContext('2d'); _cx.fillStyle = '#000'; _cx.fillStyle = v; return _cx.fillStyle; } catch { return v; } };
   const out = {};
   for (const [key, sel] of Object.entries(selectors)) {
     const el = document.querySelector(sel);
@@ -18,7 +21,7 @@ function MEASURE(selectors) {
     const r = el.getBoundingClientRect();
     const gap = cs.gap && cs.gap !== 'normal' ? cs.gap.split(' ')[0] : (cs.rowGap !== 'normal' ? cs.rowGap : null);
     out[key] = {
-      color: cs.color, backgroundColor: cs.backgroundColor, borderColor: cs.borderTopColor,
+      color: norm(cs.color), backgroundColor: norm(cs.backgroundColor), borderColor: norm(cs.borderTopColor),
       fontSize: num(cs.fontSize), fontWeight: cs.fontWeight, lineHeight: num(cs.lineHeight), letterSpacing: num(cs.letterSpacing),
       paddingTop: num(cs.paddingTop), paddingRight: num(cs.paddingRight), paddingBottom: num(cs.paddingBottom), paddingLeft: num(cs.paddingLeft),
       gap: num(gap), borderRadius: num(cs.borderTopLeftRadius), borderWidth: num(cs.borderTopWidth),

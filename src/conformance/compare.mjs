@@ -27,9 +27,35 @@ export function parseColor(c) {
   m = str.match(/^#([0-9a-f]{6})$/i);
   if (m) { const h = m[1]; return { r: parseInt(h.slice(0, 2), 16), g: parseInt(h.slice(2, 4), 16), b: parseInt(h.slice(4, 6), 16), a: 1 }; }
   m = str.match(/rgba?\(([^)]+)\)/i);
-  if (m) { const p = m[1].split(',').map((x) => parseFloat(x)); return { r: p[0], g: p[1], b: p[2], a: p[3] ?? 1 }; }
+  if (m) { const p = m[1].split(/[,\s/]+/).map((x) => parseFloat(x)); return { r: p[0], g: p[1], b: p[2], a: p[3] ?? 1 }; }
+  // oklab/oklch — modern engines (Tailwind v4) emit these from getComputedStyle
+  m = str.match(/^okl(ab|ch)\(([^)]+)\)/i);
+  if (m) {
+    const [main, alphaStr] = m[2].split('/');
+    const p = main.trim().split(/\s+/);
+    const L = p[0].endsWith('%') ? parseFloat(p[0]) / 100 : parseFloat(p[0]);
+    const alpha = alphaStr != null ? parseFloat(alphaStr) : 1;
+    let A, B;
+    if (m[1].toLowerCase() === 'ab') { A = parseFloat(p[1]); B = parseFloat(p[2]); }
+    else { const C = parseFloat(p[1]); const h = parseFloat(p[2]) * Math.PI / 180; A = C * Math.cos(h); B = C * Math.sin(h); }
+    return { ...oklabToSrgb(L, A, B), a: alpha };
+  }
   if (str === 'transparent') return { r: 0, g: 0, b: 0, a: 0 };
   return null;
+}
+
+function oklabToSrgb(L, a, b) {
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+  const l = l_ ** 3, m = m_ ** 3, s = s_ ** 3;
+  const lin = (x) => (x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055);
+  const to = (v) => Math.max(0, Math.min(255, Math.round(lin(v) * 255)));
+  return {
+    r: to(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    g: to(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    b: to(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s),
+  };
 }
 
 function srgbToLinear(v) { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
@@ -82,6 +108,10 @@ export function compareComponent(key, expect, measured, tol = DEFAULT_TOLERANCES
       findings.push({ component: key, property: prop, type, expected: want, actual: null, delta: Infinity, tol: tol[type], severity: 1, reason: 'not measured' });
       continue;
     }
+    // pill radius: when both are "fully rounded" the exact px is irrelevant (99 vs
+    // 999 vs 9999 vs 50% all read as a pill) — treat as equal to avoid a false
+    // positive. 48px+ is a pill for buttons/badges; real cards use 8-24px.
+    if (prop === 'borderRadius' && parseFloat(want) >= 48 && parseFloat(got) >= 48) continue;
     let delta, over;
     if (type === COLOR) {
       delta = deltaE(want, got);
