@@ -19,6 +19,7 @@
     ".claude-plugin",
     "README.md",
     "DESIGN.md",
+    "DESIGN-CONFORMANCE.md",
     "webview-diff.config.example.json"
   ],
   "scripts": {

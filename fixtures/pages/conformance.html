@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>conformance fixture</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#f7f8fa;padding:20px}
+
+  /* DELIBERATE design deviations vs the spec (so the gate has something to find):
+     - cta: background #6366f1 (design #4f46e5), padding-top 12 (design 14), radius 8 (design 12)
+     - badge: background #eab308 (design #10b981)
+     - card: matches the design exactly (should pass) */
+  [data-fig=cta]{
+    display:flex;align-items:center;justify-content:center;
+    height:48px;padding:12px 14px;border:0;border-radius:8px;
+    background:#6366f1;color:#fff;font-size:16px;font-weight:600;
+  }
+  [data-fig=card]{
+    margin-top:14px;display:flex;flex-direction:column;gap:12px;
+    padding:16px;border-radius:16px;background:#fff;
+  }
+  [data-fig=badge]{
+    display:inline-block;margin-top:14px;padding:3px 8px;
+    background:#eab308;color:#fff;font-size:11px;border-radius:999px;
+  }
+</style>
+</head>
+<body>
+  <button data-fig="cta">구독 시작하기</button>
+  <div data-fig="card">
+    <strong>프리미엄</strong>
+    <span>월 9,900원</span>
+  </div>
+  <div><span data-fig="badge">NEW</span></div>
+</body>
+</html>

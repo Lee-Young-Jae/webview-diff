@@ -36,6 +36,7 @@ function parseArgs(argv) {
     if (a === '--base') args.flags.baseUrl = argv[++i];
     else if (a === '--out') args.flags.outDir = argv[++i];
     else if (a === '--fail-on') args.flags.failOn = argv[++i];
+    else if (a === '--spec') args.flags.spec = argv[++i];
     else if (a.startsWith('--')) args.flags[a.slice(2)] = true;
     else rest.push(a);
   }
@@ -72,6 +73,11 @@ async function main() {
     const blocked = cfg.perf.failOn === 'warn' ? ps.worst !== 'pass' : ps.worst === 'fail';
     if (blocked) { console.log(C.red(`\n  ✗ perf gate failed (worst=${ps.worst}, fail-on=${cfg.perf.failOn})\n`)); process.exit(1); }
     console.log(C.green(`\n  ✓ perf gate passed\n`)); return;
+  }
+
+  if (mode === 'conformance') {
+    const { conformanceMode } = await import('./conformance/index.mjs');
+    process.exit(await conformanceMode(cfg, flags));
   }
 
   // ---- 1. capture ----
