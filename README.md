@@ -17,17 +17,59 @@ npx webview-diff                                      # 검사
 
 결과는 `.out/report.html`, `.out/result.json`, exit code(CI 게이트)로 나온다.
 
-## 명령
+## 명령어
 
-```
-webview-diff                 크로스환경 비주얼 diff + occlusion (+ perf, config로 켬)
-webview-diff conformance     Figma 디자인 ↔ 구현 비교   (--spec <file>)
-webview-diff selftest        검출기 자가검증 (브라우저 불필요)
-webview-diff approve         지금 캡처를 회귀 기준선으로 저장
-webview-diff clear           생성물(.out) 삭제
-webview-diff capture | diff | perf | init
-플래그: --base <url>  --fail-on warn|fail  --out <dir>
-```
+`npx webview-diff <명령> [옵션]`. 브라우저가 필요한 명령은 검사 대상 앱이 떠 있어야 한다.
+
+### `webview-diff` — 전체 검사 (기본)
+
+캡처 → 비주얼 diff → occlusion → perf(config에서 켠 경우) → 리포트를 한 번에 한다.
+출력은 `.out/report.html`(사람용), `.out/result.json`(머신용), 그리고 종료 코드. PR마다 돌리는 기본 명령.
+
+### `webview-diff capture`
+
+라우트 × 프로파일을 스크린샷해 `.out/captures/`에 저장만 한다(비교·리포트는 안 함).
+
+### `webview-diff diff`
+
+이미 찍힌 `.out/captures/`로 비교·리포트만 다시 만든다(캡처 생략, 빠름). 임계·마스크를 바꿔 재평가할 때 쓴다.
+
+### `webview-diff conformance --spec <file>`
+
+구현 DOM과 Figma 디자인 토큰을 구조 비교한다(픽셀 아님). 결과는 `.out/conformance.json`(속성 단위 findings).
+spec에 `figma` 블록과 환경변수 `FIGMA_TOKEN`이 있으면 Figma에서 토큰을 자동으로 끌어온다. 형식·배경은 [DESIGN-CONFORMANCE.md](./DESIGN-CONFORMANCE.md).
+
+### `webview-diff perf`
+
+Web Vitals(FCP/LCP/CLS/TBT)와 전송량·요청 수만 측정한다. CPU·네트워크 스로틀 + N회 median. Vitals는 Chromium에서만 신뢰(WebKit은 n/a).
+
+### `webview-diff approve`
+
+지금 `.out/captures/`를 `baselines/`로 복사해 regression 기준선으로 승인한다. 변경이 의도된 것일 때.
+
+### `webview-diff init [--base <url>] [--ci]`
+
+`webview-diff.config.json`을 만든다. `--ci`면 GitHub Actions 워크플로도 함께 깐다. 설치 직후 한 번.
+
+### `webview-diff selftest`
+
+검출기 자체를 합성 데이터로 검증한다(브라우저 불필요, 빠름). exit 0이면 신뢰 가능. CI 첫 단계로 권장.
+
+### `webview-diff clear`
+
+생성물(`.out/`)을 지운다.
+
+### 전역 플래그
+
+| 플래그 | 의미 | 기본 |
+|---|---|---|
+| `--base <url>` | 검사 대상 URL (config의 `baseUrl`을 덮어씀) | config 값 |
+| `--fail-on warn\|fail` | 어느 등급부터 게이트를 실패로 볼지 | `fail` |
+| `--out <dir>` | 산출물 디렉토리 | `.out` |
+
+### 종료 코드
+
+`0` 통과 · `1` 게이트 실패(차단) · `2` 캡처 실패.
 
 ## 비주얼 diff가 보는 것
 
