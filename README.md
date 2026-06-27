@@ -39,6 +39,10 @@ npx webview-diff                                      # 검사
 구현 DOM과 Figma 디자인 토큰을 구조 비교한다(픽셀 아님). 결과는 `.out/conformance.json`(속성 단위 findings).
 spec에 `figma` 블록과 환경변수 `FIGMA_TOKEN`이 있으면 Figma에서 토큰을 자동으로 끌어온다. 형식·배경은 [DESIGN-CONFORMANCE.md](./DESIGN-CONFORMANCE.md).
 
+### `webview-diff overlay --design <png> --app <png>`
+
+디자인 export와 앱 스크린샷을 겹쳐 보는 self-contained HTML(`.out/overlay.html`)을 만든다. onion/wipe/difference/toggle + 화살표키 nudge. 사람 리뷰용(자동 게이트 아님). DOM이 없는 네이티브 Flutter 등에 유용. 스킬 `/webview-diff:design-overlay`가 Figma 추출과 캡처까지 묶어 준다.
+
 ### `webview-diff perf`
 
 Web Vitals(FCP/LCP/CLS/TBT)와 전송량·요청 수만 측정한다. CPU·네트워크 스로틀 + N회 median. Vitals는 Chromium에서만 신뢰(WebKit은 n/a).

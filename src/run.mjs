@@ -37,6 +37,8 @@ function parseArgs(argv) {
     else if (a === '--out') args.flags.outDir = argv[++i];
     else if (a === '--fail-on') args.flags.failOn = argv[++i];
     else if (a === '--spec') args.flags.spec = argv[++i];
+    else if (a === '--design') args.flags.design = argv[++i];
+    else if (a === '--app') args.flags.app = argv[++i];
     else if (a.startsWith('--')) args.flags[a.slice(2)] = true;
     else rest.push(a);
   }
@@ -67,6 +69,17 @@ async function main() {
   if (mode === 'clear') {
     if (fs.existsSync(outDir)) { fs.rmSync(outDir, { recursive: true, force: true }); console.log(C.green(`\n  ✓ cleared ${path.relative(cfg.cwd, outDir)}/\n`)); }
     else console.log(C.gray('\n  nothing to clear\n'));
+    return;
+  }
+
+  if (mode === 'overlay') {
+    if (!flags.design || !flags.app) { console.log(C.red('\n  overlay needs --design <png> --app <png>\n')); process.exit(2); }
+    const { buildOverlay } = await import('./overlay/overlay.mjs');
+    fs.mkdirSync(outDir, { recursive: true });
+    const out = path.join(outDir, 'overlay.html');
+    const r = buildOverlay({ designPath: path.resolve(cfg.cwd, flags.design), appPath: path.resolve(cfg.cwd, flags.app), outPath: out });
+    console.log(C.green(`\n  ✓ overlay → ${path.relative(cfg.cwd, out)}`) + C.gray(`  (design ${r.design.w}×${r.design.h}, app ${r.app.w}×${r.app.h})`));
+    console.log(C.gray(`  open: open ${path.relative(cfg.cwd, out)}\n`));
     return;
   }
 
