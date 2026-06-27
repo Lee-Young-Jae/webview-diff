@@ -64,6 +64,12 @@ async function main() {
 
   if (mode === 'approve') return approve(capDir, baselineDir, cfg);
 
+  if (mode === 'clear') {
+    if (fs.existsSync(outDir)) { fs.rmSync(outDir, { recursive: true, force: true }); console.log(C.green(`\n  ✓ cleared ${path.relative(cfg.cwd, outDir)}/\n`)); }
+    else console.log(C.gray('\n  nothing to clear\n'));
+    return;
+  }
+
   if (mode === 'perf') {
     const ps = await perfStage(cfg, outDir);
     fs.writeFileSync(path.join(outDir, 'perf.json'), JSON.stringify(ps.results, null, 2));

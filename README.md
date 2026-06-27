@@ -24,6 +24,7 @@ webview-diff                 크로스환경 비주얼 diff + occlusion (+ perf,
 webview-diff conformance     Figma 디자인 ↔ 구현 비교   (--spec <file>)
 webview-diff selftest        검출기 자가검증 (브라우저 불필요)
 webview-diff approve         지금 캡처를 회귀 기준선으로 저장
+webview-diff clear           생성물(.out) 삭제
 webview-diff capture | diff | perf | init
 플래그: --base <url>  --fail-on warn|fail  --out <dir>
 ```

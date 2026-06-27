@@ -1,201 +1,116 @@
-# DESIGN — webview-diff (웹뷰 디자인 차이 검출 시스템)
+# DESIGN — webview-diff
 
-> 최초 동기는 건반(Gunban) 웹뷰 프로젝트지만, 도구는 임의의 웹뷰 웹앱에 쓰도록 범용화됨.
+동작 원리, 신뢰성 처리, 충실도의 한계, 설계 결정의 이유를 적어 둔다.
+(원래 건반 웹뷰 프로젝트에서 시작했지만 임의의 웹뷰 웹앱에 쓰도록 일반화했다.)
 
-설계 근거와 신뢰성 모델, 내린 결정의 *이유*, 성능 수치, 다음 로드맵.
-(이 문서는 진행 추적도 겸한다 — `/loop`로 이어서 개선하는 중.)
+## 문제
 
----
+웹뷰에 띄우는 웹은 같은 코드라도 환경에 따라 다르게 보인다. 차이의 출처는 셋이다.
 
-## 0. 문제 재정의
+- 렌더 엔진: Android WebView=Blink, iOS WKWebView=WebKit. 폼 컨트롤·폰트 메트릭·기본 스타일·`100vh`·sticky·flex/grid 세부가 다르다.
+- 플랫폼 분기: `bridge.platform`/`data-platform`으로 가른 CSS·JS가 의도와 다르게 발산한다.
+- OS safe-area: 노치·홈 인디케이터 인셋. 인셋을 무시하면 콘텐츠가 시스템 UI에 가린다.
 
-요구: "웹뷰인 웹과 flutter에서 오는 디자인 차이를 검출". 레포는 아직 구성 전.
+## 핵심 결정: 한 비교에 변수 하나
 
-분석 결과 **"flutter에서 오는 차이"의 실체**는 Flutter 자체가 아니라, *Flutter가 띄우는 WebView 환경*이
-dev 브라우저와 다르다는 데서 온다.
+처음엔 `android-webview`(Blink, DPR 2.625, 인셋 없음)와 `ios-wkwebview`(WebKit, DPR 3, iOS 인셋)를 통째로 비교했다.
+모든 페이지가 FAIL이었고 같은 Blink끼리도 60%가 나왔다. DPR로 출력 해상도가 달라 이미지 크기 자체가 안 맞았고, 인셋으로 전체가 수직 이동했기 때문이다. 여러 변수를 섞으면 "어딘가 다름"밖에 안 나오고 원인을 못 짚는다.
 
-- **렌더 엔진**: Android System WebView = Blink, iOS WKWebView = WebKit. 두 엔진은 폼 컨트롤·폰트
-  메트릭·기본 스타일·`100vh`·sticky·flex/grid 세부가 다르다.
-- **플랫폼 분기**: 웹이 `bridge.platform`(android/ios)으로 분기한 CSS/JS가 의도치 않게 발산.
-- **OS safe-area**: 노치/홈 인디케이터 인셋. 실 WebView는 `env(safe-area-inset-*)`를 OS가 주입,
-  dev 크롬은 0. 인셋 처리 실수 = 콘텐츠가 시스템 UI에 가려지는 버그.
+그래서:
 
-→ 따라서 만들 것은 **크로스 엔진 비주얼 회귀 + 환경 격리 검출 시스템**.
+1. 출력 정규화 — `screenshot({ scale: 'css' })`로 DPR을 출력 크기에서 분리하고, 비교쌍은 같은 뷰포트(393×852)를 쓴다.
+2. 축 분리 — baseline에서 한 축만 바꾼 프로파일을 만든다: `engine-webkit`(엔진만), `platform-ios`(플랫폼 분기만), `insets-ios`(인셋만). 그러면 FAIL의 원인이 하나로 잡힌다.
 
----
-
-## 1. 가장 큰 설계 결정: "1 비교 = 1 변수"
-
-순수 픽셀 비교의 함정을 실측으로 확인했다. 초기에 `android-webview`(Blink, DPR 2.625, ios 인셋 없음)
-vs `ios-wkwebview`(WebKit, DPR 3, ios 인셋)을 통째로 비교하니 **모든 페이지가 FAIL**, 같은 Blink끼리도
-60%. 원인: DPR로 출력 해상도가 달라 이미지 크기 자체가 불일치 + 인셋으로 전체가 수직 이동.
-
-교훈: 여러 변수를 한꺼번에 비교하면 "어딘가 다름"밖에 안 나오고 **원인 특정 불가 = 행동 불가**.
-
-해결:
-
-1. **출력 정규화** — `screenshot({ scale: 'css' })`로 DPR을 출력 크기에서 분리(DPR은 media query/srcset엔
-   여전히 영향), 비교쌍은 **공유 뷰포트(393×852)**.
-2. **축 분리** — 프로파일을 baseline에서 *딱 한 축*만 다르게 설계: `engine-webkit`(엔진만),
-   `platform-ios`(플랫폼 분기만), `insets-ios`(인셋만). 실패하면 원인이 하나.
-
-실측(내장 fixture):
+내장 fixture 실측:
 
 | 비교 | 결과 | 해석 |
 |---|---|---|
-| `forms` engine | FAIL 3.08% | WebKit가 date/select/radio를 Blink와 다르게 렌더 (진짜 엔진 차이) |
-| `drift` platform | FAIL 5.54% | iOS 분기 CSS가 버튼 색/패딩 어긋남 (주입한 버그를 정확히 검출) |
-| `home` safe-area | FAIL 13.9% | top-inset만큼 헤더가 밀림 (인셋 처리에 정확히 귀인) |
-| `drift`/`forms` platform | PASS 0.000% | 분기 없는 페이지는 완전 동일 (정밀도 입증) |
+| `forms` engine | FAIL 3.08% | WebKit가 date/select/radio를 Blink와 다르게 렌더 |
+| `drift` platform | FAIL 5.54% | iOS 분기 CSS가 버튼 색·패딩을 어긋나게 함 |
+| `home` safe-area | FAIL 13.9% | top 인셋만큼 헤더가 밀림 |
+| `drift`/`forms` platform | PASS 0% | 분기 없는 페이지는 동일 |
 
-실 디바이스의 "엔진+플랫폼+인셋+DPR 전부 다름"은 **cross-diff가 아니라 regression(자기 기준선 대비)**로
-다룬다 — 그래야 "환경이 원래 다른 것"과 "내 변경이 깬 것"이 안 섞인다.
+## 충실도와 한계 (에뮬레이션 ≠ 실기기)
 
----
+도구는 Playwright의 Chromium/WebKit으로 "실제 WebView처럼" 띄우지만, 픽셀까지 같지는 않다. 정직하게:
 
-## 2. 신뢰성 모델 (이 도구의 핵심 가치)
+- 엔진 계열은 같고 빌드는 다르다. Playwright Chromium은 핀고정된 Chrome for Testing 빌드, 실제 Android WebView는 구글이 따로 배포하는 빌드(버전·WebView 전용 동작 차이). Playwright WebKit은 upstream webkit.org 빌드이고 **애플의 iOS WebKit이 아니다.** 레이아웃 엔진 동작은 비슷하지만 같은 바이너리는 아니다.
+- 텍스트·폰트 래스터화는 엔진이 아니라 호스트 OS가 한다. macOS에서 띄우면 CoreText+맥 폰트로, Linux에서 띄우면 fontconfig+설치 폰트로 그린다. 그래서 같은 엔진이라도 Mac/Windows/Linux에서 스크린샷이 다를 수 있다(AA·이모지·폴백·Skia 래스터). 로드된 웹폰트는 일관되지만 system-ui·이모지·폴백은 호스트마다 다르다.
 
-비주얼 회귀 도구는 **오탐(flake) 한 번이면 아무도 안 본다.** 그래서 신뢰성을 1순위로 설계했다.
+운영상 결론:
 
-### 2.1 검출기 자체를 검증 — `selftest.mjs`
+- 한 번의 실행 안에서 baseline ↔ engine-webkit는 같은 호스트·같은 시점에 찍으므로 호스트가 상수이고 엔진만 변수다. within-run 크로스엔진 비교는 공정하다(호스트 폰트 차이는 양쪽에 똑같이 적용돼 상쇄된다). 잡는 대상은 "WebKit에서 레이아웃이 다르게 깨지나" 같은 구조 차이다.
+- 머신을 건너뛰는 regression(예: Mac 기준선 ↔ Linux CI 후보)은 호스트 폰트 차이가 거짓 diff로 뜬다. 비주얼 테스트는 고정된 호스트(Docker/동일 CI 이미지)에서 돌려야 한다.
+- 픽셀 단위 실기기 충실도가 필요하면 BrowserStack 실기기나, 실제 WebView 원격 디버깅(Android `chrome://inspect` CDP, iOS web-inspector-proxy)이 보완 경로다.
 
-브라우저 없이 합성 UI를 그려 ground truth를 안다. 측정값(현재):
+즉 이 도구는 구조·레이아웃 차이를 잡는 프록시다. AA 무시·shift-tolerance·지각 거리로 호스트 렌더 노이즈를 걷어내고 구조 차이에 집중하는 것도 같은 이유다.
 
-```text
-precision=1.000  recall=1.000  f1=1.000  flake=0.000  miss=0.000
-confusion: tp=9 fp=0 tn=16 fn=0   stability: 20/20 PASS
-```
+## 신뢰성
 
-- 동일 렌더+노이즈 16쌍 → 전부 PASS (오탐 0)
-- 주입한 디자인 변화 9종(색/위치/패딩/요소누락/크기불일치/미세색조/작은점recolor) → 전부 검출 (놓침 0)
+오탐이 나면 아무도 결과를 안 본다. 그래서 신뢰성에 다음을 둔다.
 
-이 self-test가 **실제로 결함을 잡았다**: 초기엔 균일한 미세 색조 드리프트(헤더 #fff→#f3f4f6)를
-놓쳐 recall 0.75였다. 원인은 pixelmatch 기본 threshold(0.1)가 너무 관대. → regression threshold를
-0.035로 조정. recall 1.0 회복.
+- 검출기 자가검증(`selftest.mjs`): 합성 UI로 ground truth를 만들어 정밀도/재현율/오탐을 잰다. 현재 1.0 / 1.0 / 0 (tp=9, fp=0, tn=16, fn=0, stability 20/20). 초기엔 미세 색조 드리프트(#fff→#f3f4f6)를 놓쳐 recall 0.75였고, regression 임계를 0.035로 조정해 회복했다.
+- 캡처 결정성(`determinism.mjs`): 시간·난수 freeze, 애니·트랜지션·캐럿 정지, `fonts.ready`·이미지 `decode()`·lazy 스크롤 대기, 스크롤바 숨김. 같은 입력이면 같은 픽셀.
+- 지각 거리 + AA 무시: pixelmatch 알고리즘(YIQ) 포팅. 엣지 AA는 이웃 대비로 판별해 카운트에서 뺀다.
+- shift-tolerance(`matchRadius`): 임계 초과 픽셀이라도 반경 R 안에 상대 이미지에 매칭이 있으면 국소 이동(렌더 노이즈)으로 보고 제외. home engine 노이즈가 1.64%→0.06%로 떨어졌다. regression R=0, cross-engine R=2.
+- cluster(연결 성분): 진짜 diff 픽셀을 8-연결로 묶어 area/density를 본다. 밀집 블록은 전체 비율이 게이트 아래여도 승격(작은 국소 변화 재현율↑), 채움률 낮은 텍스트 띠는 무시(false positive 회피). density 게이트 regression 0.4 / cross-engine 0.7.
+- 2단 임계: regression은 pixel 0.035·R=0·엄격, cross-engine은 pixel 0.1·R=2·pass<0.3%/warn<2%(솔리드 엣지 AA의 노이즈 바닥 1~2% 인정).
 
-### 2.2 캡처 flake 제거 — `determinism.mjs`
+## 성능 측정 (`perf.mjs`)
 
-시간/난수 freeze, 애니·트랜지션·캐럿 정지, `document.fonts.ready`·이미지 `decode()`·lazy 스크롤 대기,
-스크롤바 숨김, `reducedMotion:'reduce'`, `networkidle` 폴백. → 같은 입력은 항상 같은 픽셀.
+성능 지표는 시끄러우므로 재현성을 둔다.
 
-### 2.3 cross-engine 노이즈 억제 — shift-tolerance
+- CDP로 CPU 4×·네트워크 스로틀(없으면 빠른 개발 머신에서만 통과하다 CI에서 깨진다).
+- 같은 측정을 N회 반복해 median, min/max도 남김.
+- 늦은 CLS(페인트 후 삽입되는 배너 등)는 load 이후 넉넉히 settle해야 잡힌다.
+- Vitals(FCP/LCP/CLS/TBT)는 Chromium에서만 신뢰(WebKit observer 미지원 → n/a). WebKit은 로드·바이트만 비교.
 
-WebKit↔Blink는 글리프를 1~2px 다르게 래스터한다(수정 불가·예상됨). diff 이미지로 확인하니
-engine 축 home의 빨강이 **전부 텍스트**였다. → `matchRadius`(이웃 매칭 반경) 도입: 임계 초과 픽셀이라도
-반경 R 내 상대 이미지에 매칭이 있으면(국소 이동) 카운트 제외. 진짜 이동/리사이즈는 R보다 크게 움직여 남음.
-효과: home engine **1.64% → 0.06%**(텍스트 노이즈 붕괴), forms 구조 차이는 그대로.
-regression은 R=0(정밀), cross-engine은 R=2.
+`/heavy` fixture(의도적 long task·지연 배너)에서 TBT 651ms·CLS 0.18·LCP 772ms를 검출, 건강한 페이지는 PASS.
 
-### 2.4 anti-aliasing 검출
+## Safe-area occlusion (`safe-area-audit.mjs`)
 
-pixelmatch 알고리즘 충실 포팅(YIQ + AA 검출). 엣지 AA를 노이즈로 분류해 별색(노랑) 표기·미카운트.
+픽셀 diff는 "버튼이 가려져 못 누르게 됐다"를 못 잡는다(가려진 픽셀과 정상 픽셀이 같게 보임). 그래서 DOM을 본다.
 
-### 2.5 모드별 2단 임계
+- 프로파일 인셋 기준으로, 인터랙티브/텍스트 요소의 박스가 불안전 밴드(top=상태바/노치, bottom=홈 인디케이터)에 드는지 검사.
+- 인터랙티브가 밴드에 들면 FAIL(탭 불가/숨김). 일반 텍스트는 bottom 밴드에서만 WARN(상단 텍스트가 상태바 아래로 스크롤되는 건 흔한 패턴이라 무시).
 
-- **regression**: pixel 0.035, R=0, pass<0.08% / warn<0.5% / fail. (동일 엔진은 결정적이라 엄격)
-- **cross-engine**: pixel 0.1, R=2, pass<0.3% / warn<2% / fail. (솔리드 셰이프 엣지 AA의 불가피한
-  노이즈 바닥 ~1-2%를 인정 → 확산 노이즈는 WARN, 구조 차이는 FAIL)
+`/occlusion` fixture에서 인셋 무시한 뒤로가기·결제 버튼 2개를 검출, 올바른 페이지는 무결.
 
-### 2.6 연결 성분(cluster-density) 분석
+## 브릿지 mock (`bridge-mock.mjs`)
 
-글로벌 비율만으론 "확산 엣지 노이즈 1.5%(양성)" vs "집중된 실제 차이 0.4%(의미 있음)"를 못 가른다.
-→ 실제 diff 픽셀 마스크에 **8-연결 connected-components**를 돌려 클러스터별 `area / bbox / density(=채움률)`를
-구한다. 두 가지로 정밀도를 한 단계 올렸다.
+웹이 JS 브릿지(`window.<name>`)에 의존하면 브라우저엔 그게 없어 화면이 안 그려진다. 설정으로 mock을 앱 코드보다 먼저 주입한다(`globalName`+`api`+`props`). `platform`과 safe-area 인셋은 프로파일에서 자동으로 넣는다. 브릿지가 필요 없는 앱은 생략한다.
 
-- **작은 국소 변화의 재현율 ↑**: 밀집 클러스터는 전체 비율이 게이트 아래여도 승격. 예: 14×14 점 recolor는
-  비율 0.066%(PASS 게이트 아래)지만 cluster로 FAIL 검출. self-test가 이를 단언한다.
-- **텍스트 false-positive 회피**: cross-engine 텍스트는 *넓고 채움률 ~60%인 띠*로 나타난다. density 게이트를
-  regression 0.4 / cross-engine **0.7**로 둬, 솔리드 블록(채움률 ~95-100%)만 승격하고 글자 띠는 무시.
-  실측: drift engine의 "321×11, 63% fill" 버튼 라벨 띠 → 승격 안 됨(올바르게 WARN 유지).
+## 의존성 철학
 
-리포트는 최대 클러스터의 bbox를 **시안색 박스**로 diff 위에 그려 눈이 진짜 변화로 바로 가게 한다.
+판정 엔진(`src/engine/*`)은 의존성이 0이다(node `zlib`만). pass/fail을 정하는 코드가 설치 실패·네이티브 addon·공급망에 흔들리면 안 되기 때문이다. 무거운 Playwright는 캡처에만 필요하고, PNG만 있으면 엔진은 어디서든 돈다.
 
-### 2.7 성능 측정의 신뢰성 — `perf.mjs`
+## 성능 수치
 
-성능 지표는 본질적으로 시끄럽다(CPU 경합·GC·네트워크). 그래서 두 가지로 재현성을 확보했다.
+- 캡처: 4라우트×4프로파일 ~6초(엔진별 브라우저 1회 기동·재사용, scale:css).
+- diff+리포트: 의존성 0 순수 JS, 12비교 < 1초.
+- self-test: < 1초(브라우저 불필요).
 
-- **스로틀로 환경 고정**: CDP로 CPU 4× + 네트워크(4G) 스로틀. 없으면 빠른 개발 머신에서 늘 통과하다 CI에서
-  깨지는 식이 된다(Lighthouse가 스로틀하는 이유와 동일). Chromium 전용이라 Vitals 게이트는 `baseline`에서 돈다.
-- **median-of-N + 분산 보고**: 같은 측정을 N회 반복해 median을 취하고 min/max도 같이 남긴다.
-- **늦은 CLS 포착**: 배너/광고는 페인트 후 삽입돼 시프트를 만든다. CPU 스로틀 하에선 그 프레임이 느려, load 이후
-  넉넉히(2s) settle해야 안정적으로 잡힌다. (이 타이밍 버그를 `/heavy` fixture로 발견·수정했다.)
-- WebKit은 layout-shift/longtask/LCP observer를 지원하지 않아 Vitals를 `n/a`로 표기하고, 로드/바이트만 비교한다.
-
-검증: 의도적으로 long task(700ms)·지연 배너를 심은 `/heavy`에서 **TBT 651ms(FAIL)·CLS 0.18(WARN)·LCP 772ms**를
-정확히 검출, 건강한 페이지는 모두 PASS.
-
-### 2.8 Safe-area occlusion 감사 — `safe-area-audit.mjs`
-
-픽셀 diff는 "인셋이 레이아웃을 바꿨다"까지만 안다. 정작 위험한 버그 — **탭 버튼이 홈 인디케이터/노치 아래로
-가려져 누를 수 없게 된 것** — 은 픽셀로 못 잡는다(가려진 픽셀과 정상 픽셀이 똑같이 보인다). 그래서 DOM을 감사한다.
-
-- 프로파일의 실제 인셋을 적용한 상태에서, 인터랙티브/텍스트 요소의 박스가 **불안전 밴드**(top=상태바/노치,
-  bottom=홈 인디케이터)에 들어가는지 검사.
-- **신호 대 잡음**: 인터랙티브 요소가 밴드에 들어가면 **FAIL**(탭 불가/숨김 = 명백한 버그). 일반 텍스트는
-  **bottom 밴드에서만 WARN** — 상단 텍스트가 상태바 아래로 스크롤되는 건 흔히 허용되는 패턴이라 무시한다.
-- 캡처 시 인셋 프로파일에서만 같이 돌고(추가 비용 ≈ DOM eval 1회), 리포트·게이트에 합쳐진다.
-
-검증: 인셋을 무시한 상단바/하단 CTA를 심은 `/occlusion`에서 **뒤로가기 버튼(top)·결제 버튼(bottom) 2개를
-정확히 검출(FAIL)**, 인셋을 올바로 처리한 페이지는 무결.
-
----
-
-## 3. 브릿지 mock (`bridge-mock.mjs`)
-
-웹은 `window.NativeBridge`에만 의존하므로(아키텍처), mock이 없으면 인증/네이티브 의존 화면이 안 그려진다.
-앱 스크립트보다 먼저(`addInitScript`) 주입하고, **프로파일의 실제 platform·safe-area를 반영**해서
-플랫폼 조건부 렌더까지 충실히 재현한다(가짜 단일 플랫폼으로 숨기지 않음). 이 mock은 fe-web의 dev용
-mock 브릿지와 그대로 공유 가능(아키텍처상 어차피 필요한 것 = 중복 제거).
-
----
-
-## 4. 성능
-
-- 캡처: **16장(4라우트×4프로파일) ~6초** (엔진별 브라우저 1회 기동·재사용, 동시성 4, scale:css로 경량).
-  → 라우트당 ~0.37초. 라우트·프로파일은 선형 확장, 동시성·샤딩으로 단축 가능.
-- diff/리포트(cluster 포함): 12비교 < 1초 (순수 JS, 의존성 0).
-- self-test: < 1초 (브라우저 불필요) → PR마다 부담 없이 게이트.
-
----
-
-## 5. 의존성 철학
-
-**판정 엔진(`src/engine/*`)은 의존성 0** (node 내장 `zlib`만). 이유: CI의 pass/fail을 결정하는 코드가
-설치 실패/네이티브 addon/공급망에 흔들리면 안 된다. 무거운 Playwright는 *캡처*에만 필요하고, 캡처 산출물
-(PNG)만 있으면 엔진은 어디서든(바 node, 잠긴 샌드박스) 돌아간다.
-
----
-
-## 6. 로드맵 (우선순위순)
-
-- [x] **연결 성분(cluster-density) 분석** — §2.6. 완료(2026-06-25, iteration 2).
-- [x] **성능 예산 게이트** — §2.7. Web Vitals(FCP/LCP/CLS/TBT)+바이트/요청, 스로틀+median, 통합 리포트/게이트.
-      완료(2026-06-25, iteration 3).
-- [x] **safe-area occlusion 검출** — §2.8. DOM 감사로 인셋에 가려지는 인터랙티브 요소 검출.
-      완료(2026-06-25, iteration 4).
-- [ ] **Figma 디자인 대조**: `mcp__figma__get_figma_data`로 디자인 프레임을 받아 구현과 대조(디자인↔웹 계약).
-      *실제 Figma 파일/토큰이 있어야 end-to-end 검증 가능 → 사용자 입력 필요.*
-- [ ] **실 디바이스 캡처 경로**: 에뮬레이션의 한계(WebKit≠실제 WKWebView 100%)를 보완 —
-      Flutter `integration_test` 스크린샷 또는 BrowserStack/Appium 경로 문서화·연동.
-- [ ] **CI 워크플로 실연**: `ci/github-actions.yml`(템플릿 제공됨)을 실제 PR에 연결,
-      report.html을 아티팩트 업로드 + PR 코멘트.
-- [ ] **베이스라인 거버넌스**: regression 기준선 변경 시 리뷰 필수(공용 컴포넌트 거버넌스와 동일 원칙).
-- [ ] **반응형 축**: 디바이스별 실 뷰포트(360/393/412…)에서의 레이아웃 회귀(별도 축).
-
----
-
-## 7. 핵심 파일 인덱스
+## 파일
 
 | 파일 | 역할 |
 |---|---|
-| `src/engine/diff.mjs` | 지각적 diff (YIQ·AA·shift-tolerance·cluster·크기불일치·마스크) |
-| `src/engine/png.mjs` | 의존성 0 PNG 코덱 + strokeRect |
-| `src/engine/metrics.mjs` | 판정(비율+cluster 승격) + 혼동행렬 |
+| `src/engine/diff.mjs` | 지각 diff (YIQ·AA·shift-tolerance·cluster·크기불일치·마스크) |
+| `src/engine/png.mjs` | 의존성 0 PNG 코덱 |
+| `src/engine/metrics.mjs` | 판정 + 혼동행렬 |
 | `src/engine/perf-budget.mjs` | Web Vitals 예산 판정 |
-| `src/capture/perf.mjs` | 성능 측정(스로틀+median, Web Vitals 수집) |
-| `src/capture/safe-area-audit.mjs` | DOM occlusion 감사(인셋에 가려지는 요소) |
-| `src/capture/profiles.mjs` | 1변수 격리 프로파일 + 비교쌍 |
-| `src/capture/determinism.mjs` | flake 제거 하네스 |
-| `src/capture/bridge-mock.mjs` | NativeBridge mock |
+| `src/engine/report.mjs` | HTML 리포트 |
+| `src/capture/profiles.mjs` | 1변수 격리 프로파일 |
+| `src/capture/capture.mjs` | 멀티엔진 캡처 + occlusion 훅 |
+| `src/capture/determinism.mjs` | flake 제거 |
+| `src/capture/perf.mjs` | 성능 측정 |
+| `src/capture/safe-area-audit.mjs` | DOM occlusion 감사 |
+| `src/capture/bridge-mock.mjs` | 브릿지 mock |
 | `src/run.mjs` | 오케스트레이터 + CI 게이트 |
-| `src/selftest.mjs` | 검출기 신뢰성 증명 |
+| `src/selftest.mjs` | 검출기 자가검증 |
+
+## 남은 일
+
+- Figma 대조는 [DESIGN-CONFORMANCE.md](./DESIGN-CONFORMANCE.md) 참고. 자동 추출(`fetchFigmaSpec`)은 실제 토큰으로 검증 전.
+- 실 디바이스 캡처 경로(BrowserStack / 원격 디버깅).
+- CI 워크플로 실연(`ci/github-actions.yml` 템플릿 제공).
+- 반응형 축(디바이스별 실 뷰포트).
